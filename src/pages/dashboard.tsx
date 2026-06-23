@@ -128,7 +128,7 @@ function MainPartSection() {
   const theme = isDark ? DARK : LIGHT;
 
   const [ctrlMode, setCtrlMode] = useState<"v" | "p">("v");
-  const [targetVal, setTargetVal] = useState<number>(0);
+  const [targetVal, setTargetVal] = useState("");
   const [pid, setPid] = useState({ kp: 1.0, ki: 0.1, kd: 0.01 });
   const sendPidTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -311,17 +311,25 @@ function MainPartSection() {
             </ModeToggleRow>
             <ControlLabel $theme={theme}>Target {isVelMode ? "(RPM, ±200)" : "(เมตร)"}</ControlLabel>
             <ControlInput
-              $theme={theme}
-              type="number"
-              value={targetVal}
-              step={isVelMode ? 50 : 0.001}
-              onChange={(e) => setTargetVal(Number(e.target.value))}
-              onKeyDown={(e) => e.key === "Enter" && sendTarget(ctrlMode, targetVal)}
-            />
-            <ControlButton $theme={theme} onClick={() => sendTarget(ctrlMode, targetVal)}>
+  $theme={theme}
+  type="number"
+  
+  value={targetVal} 
+  step={isVelMode ? 50 : 0.001}
+  
+  onChange={(e) => setTargetVal(e.target.value)}
+
+  onKeyDown={(e) => {
+    if (e.key === "Enter") {
+      const numericValue = targetVal === "" ? 0 : Number(targetVal);
+      sendTarget(ctrlMode, numericValue);
+    }
+  }}
+/>
+            <ControlButton $theme={theme} onClick={() => sendTarget(ctrlMode, Number(targetVal || 0))}>
               Send Command
             </ControlButton>
-            <StopButton $theme={theme} onClick={() => { setTargetVal(0); sendTarget(ctrlMode, 0); }}>
+            <StopButton $theme={theme} onClick={() => { setTargetVal("0"); sendTarget(ctrlMode, 0); }}>
               ⏹ STOP
             </StopButton>
           </ControlCard>

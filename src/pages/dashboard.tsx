@@ -121,7 +121,7 @@ function PidSlider({
 // Main
 // ===================================================================
 function MainPartSection() {
-  const { sendTarget, sendPID } = useMqttControl();
+  const { sendTarget, sendPID, startAutoTune } = useMqttControl();
   const { liveSnapshot, history, ingest, clearHistory } = useStepResponseAnalysis();
 
   const [isDark, setIsDark] = useState(true);
@@ -151,6 +151,19 @@ function MainPartSection() {
     const handleConnect = () => setIsConnected(true);
     const handleClose = () => setIsConnected(false);
     const handleMessage = (topic: string, message: Uint8Array) => {
+      // จับ event แจ้งเตือนจาก ESP32 ว่าจูนเสร็จแล้ว
+      if (topic === "telemetry/pid_updated") {
+        try {
+          const payload = JSON.parse(message.toString());
+          setPid({
+            kp: Number(payload.kp.toFixed(2)),
+            ki: Number(payload.ki.toFixed(2)),
+            kd: Number(payload.kd.toFixed(3))
+          });
+        } catch (e) {}
+        return;
+      }
+
       if (topic !== "telemetry/data") return;
       try {
         const payload = JSON.parse(message.toString());
@@ -282,7 +295,7 @@ function MainPartSection() {
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* PWM Chart */}
+        {/* PWM Chart
         <ChartCard $theme={theme}>
           <CardTitle $theme={theme}>PWM Output</CardTitle>
           <ResponsiveContainer width="100%" height={90}>
@@ -295,7 +308,7 @@ function MainPartSection() {
               <Line type="monotone" dataKey="pwm" stroke="#a78bfa" strokeWidth={1.5} dot={false} name="PWM" isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </ChartCard> */}
 
         {/* Control + PID */}
         <TwoCol>
@@ -311,21 +324,18 @@ function MainPartSection() {
             </ModeToggleRow>
             <ControlLabel $theme={theme}>Target {isVelMode ? "(RPM, ±200)" : "(เมตร)"}</ControlLabel>
             <ControlInput
-  $theme={theme}
-  type="number"
-  
-  value={targetVal} 
-  step={isVelMode ? 50 : 0.001}
-  
-  onChange={(e) => setTargetVal(e.target.value)}
-
-  onKeyDown={(e) => {
-    if (e.key === "Enter") {
-      const numericValue = targetVal === "" ? 0 : Number(targetVal);
-      sendTarget(ctrlMode, numericValue);
-    }
-  }}
-/>
+              $theme={theme}
+              type="number"
+              value={targetVal} 
+              step={isVelMode ? 50 : 0.001}
+              onChange={(e) => setTargetVal(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const numericValue = targetVal === "" ? 0 : Number(targetVal);
+                  sendTarget(ctrlMode, numericValue);
+                }
+              }}
+            />
             <ControlButton $theme={theme} onClick={() => sendTarget(ctrlMode, Number(targetVal || 0))}>
               Send Command
             </ControlButton>
@@ -354,9 +364,16 @@ function MainPartSection() {
                 />
               ))}
             </PidManualRow>
-            <ControlButton $theme={theme} onClick={() => sendPID(pid.kp, pid.ki, pid.kd)} style={{ marginTop: 8, background: theme.success }}>
-              Send PID
-            </ControlButton>
+            
+            {/* แยกเป็น 2 ปุ่ม: ส่ง PID ธรรมดา และเริ่ม Auto Tune */}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <ControlButton $theme={theme} onClick={() => sendPID(pid.kp, pid.ki, pid.kd)} style={{ flex: 1, marginTop: 0, background: theme.success }}>
+                Send PID
+              </ControlButton>
+              <ControlButton $theme={theme} onClick={() => startAutoTune()} style={{ flex: 1, marginTop: 0, background: theme.accentAlt }}>
+                ⚡ Auto Tune
+              </ControlButton>
+            </div>
           </ControlCard>
         </TwoCol>
 
@@ -614,7 +631,7 @@ const ControlButton = styled.button<T>`
   cursor: pointer;
   font-size: 0.88rem;
   transition: background 0.15s;
-  &:hover { background: ${(p) => p.$theme.accentHover}; }
+  &:hover { background: ${(p) => p.$theme.accentHover}; filter: brightness(1.1); }
 `;
 const StopButton = styled.button<T>`
   width: 100%;

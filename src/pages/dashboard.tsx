@@ -470,7 +470,7 @@ const MainSection = styled.div<T>`
 
   @media (max-width: 390px) {
     padding: 16px 10px 32px;
-    margin-top: 60px;
+    margin-top: 80px;
   }
 `;
 const MainBox = styled.div`
